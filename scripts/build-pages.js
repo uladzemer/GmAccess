@@ -41,6 +41,14 @@ function formatDate(iso) {
   return fmt.format(d);
 }
 
+function findAssetByPatterns(assets, patterns) {
+  for (const pattern of patterns) {
+    const match = assets.find((asset) => pattern.test(String(asset.name || '').toLowerCase()));
+    if (match) return match;
+  }
+  return null;
+}
+
 async function fetchReleases() {
   const headers = {
     'User-Agent': 'release-page-generator',
@@ -65,56 +73,7 @@ async function fetchReleases() {
   return all;
 }
 
-function renderReleaseCard(release, index, isLatest) {
-  const tag = release.tag_name || release.name || 'без тега';
-  const title = release.name || release.tag_name || 'Релиз';
-  const url = release.html_url || '#';
-  const published = formatDate(release.published_at || release.created_at);
-  const prerelease = release.prerelease ? '<span class="badge subtle">Предрелиз</span>' : '';
-  const latest = isLatest ? '<span class="badge">Последний</span>' : '';
-  const assets = Array.isArray(release.assets) ? release.assets : [];
-  const assetsHtml = assets.length
-    ? assets.map((asset) => {
-      const assetName = escapeHtml(asset.name || 'asset');
-      const assetUrl = escapeHtml(asset.browser_download_url || '#');
-      const assetSize = formatBytes(asset.size || 0);
-      const dlCount = Number.isFinite(asset.download_count) ? asset.download_count : null;
-      const dlLabel = dlCount !== null ? `${dlCount} скачиваний` : 'скачиваний';
-      return `<li><a href="${assetUrl}">${assetName}</a><span>${assetSize} · ${dlLabel}</span></li>`;
-    }).join('')
-    : '<li class="muted">Файлы не добавлены.</li>';
-  const notes = escapeHtml(release.body || '').replace(/\n/g, '<br>');
-  const notesBlock = notes
-    ? `<details><summary>Описание релиза</summary><div class="notes">${notes}</div></details>`
-    : '';
-  return `
-    <article class="card" style="--i:${index}">
-      <div class="card-head">
-        <div class="title-block">
-          <h2>${escapeHtml(title)}</h2>
-          <div class="meta">
-            <span class="tag">${escapeHtml(tag)}</span>
-            ${published ? `<span>${escapeHtml(published)}</span>` : ''}
-          </div>
-        </div>
-        <div class="badges">
-          ${latest}
-          ${prerelease}
-        </div>
-      </div>
-      <div class="actions">
-        <a class="primary" href="${escapeHtml(url)}">Открыть релиз</a>
-      </div>
-      <div class="assets">
-        <div class="section-title">Файлы</div>
-        <ul>${assetsHtml}</ul>
-      </div>
-      ${notesBlock}
-    </article>
-  `;
-}
-
-function buildHtml(releases) {
+function pickLatestRelease(releases) {
   const sorted = releases
     .filter((r) => r && !r.draft)
     .sort((a, b) => {
@@ -122,209 +81,113 @@ function buildHtml(releases) {
       const bDate = Date.parse(b.published_at || b.created_at || 0);
       return bDate - aDate;
     });
-  const cards = sorted.length
-    ? sorted.map((r, i) => renderReleaseCard(r, i, i === 0)).join('')
-    : '<div class="empty">Релизов пока нет.</div>';
-  const updated = new Date().toISOString().slice(0, 19).replace('T', ' ') + ' UTC';
+  if (!sorted.length) return null;
+  const stable = sorted.find((r) => !r.prerelease);
+  return stable || sorted[0] || null;
+}
+
+function resolveDownloadLinks(release) {
+  if (!release) return { windows: null, macos: null };
+  const assets = Array.isArray(release.assets) ? release.assets : [];
+  const winAsset = findAssetByPatterns(assets, [
+    /\.exe$/,
+    /\.msi$/,
+    /win/,
+  ]);
+  const macAsset = findAssetByPatterns(assets, [
+    /\.dmg$/,
+    /\.pkg$/,
+    /mac|osx|darwin/,
+  ]);
+  return {
+    windows: winAsset ? winAsset.browser_download_url : null,
+    macos: macAsset ? macAsset.browser_download_url : null,
+  };
+}
+
+function buildHtml(releases) {
+  const latest = pickLatestRelease(releases);
+  const links = resolveDownloadLinks(latest);
   return `<!doctype html>
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>GmAccess Релизы</title>
-    <meta name="description" content="Ссылки на загрузку и история релизов GmAccess." />
+    <title>GmAccess</title>
+    <meta name="description" content="Скачать GmAccess для Windows или macOS." />
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&display=swap');
       :root {
-        --bg-1: #f4efe6;
-        --bg-2: #d7ece2;
-        --bg-3: #f8f4fb;
-        --ink: #1b1b1b;
-        --muted: #5f6b6a;
+        --bg: #f6f6f4;
+        --ink: #151615;
+        --muted: #5b615e;
         --accent: #0f766e;
-        --accent-2: #f97316;
-        --card: rgba(255, 255, 255, 0.9);
-        --shadow: 0 24px 60px rgba(16, 24, 40, 0.12);
-        --border: rgba(15, 23, 42, 0.12);
+        --card: #ffffff;
+        --border: #e5e7eb;
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
-        font-family: "Space Grotesk", "Manrope", "IBM Plex Sans", sans-serif;
+        font-family: "IBM Plex Sans", "Manrope", "Segoe UI", sans-serif;
         color: var(--ink);
-        background: radial-gradient(circle at 10% 20%, var(--bg-2), transparent 55%),
-                    radial-gradient(circle at 90% 0%, var(--bg-3), transparent 45%),
-                    linear-gradient(160deg, var(--bg-1), #ffffff);
+        background: var(--bg);
         min-height: 100vh;
       }
-      header {
-        padding: 56px 10vw 24px;
-        display: grid;
-        gap: 12px;
+      .wrap {
+        max-width: 820px;
+        margin: 0 auto;
+        padding: 56px 16px 64px;
       }
-      header h1 {
-        margin: 0;
-        font-size: clamp(2rem, 3vw, 3.3rem);
+      h1 {
+        margin: 0 0 6px 0;
+        font-size: clamp(2rem, 3vw, 2.8rem);
         letter-spacing: -0.02em;
       }
-      header p {
-        margin: 0;
-        font-size: 1.05rem;
-        color: var(--muted);
-        max-width: 720px;
-      }
-      main {
-        padding: 0 10vw 64px;
-      }
-      .grid {
+      .buttons {
         display: grid;
-        gap: 24px;
-      }
-      .card {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 22px;
-        padding: 24px;
-        box-shadow: var(--shadow);
-        backdrop-filter: blur(10px);
-        animation: rise 600ms ease both;
-        animation-delay: calc(var(--i) * 60ms);
-      }
-      .card-head {
-        display: flex;
-        justify-content: space-between;
-        gap: 16px;
-        align-items: flex-start;
-        flex-wrap: wrap;
-      }
-      h2 {
-        margin: 0 0 6px 0;
-        font-size: 1.6rem;
-      }
-      .meta {
-        display: flex;
         gap: 12px;
-        flex-wrap: wrap;
-        color: var(--muted);
-        font-size: 0.95rem;
+        margin-top: 22px;
       }
-      .tag {
-        padding: 2px 10px;
-        border-radius: 999px;
-        background: rgba(15, 118, 110, 0.12);
-        color: var(--accent);
-        font-weight: 600;
-      }
-      .badges {
-        display: flex;
-        gap: 8px;
-      }
-      .badge {
-        background: var(--accent);
-        color: #fff;
-        padding: 6px 12px;
-        border-radius: 999px;
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-      }
-      .badge.subtle {
-        background: rgba(249, 115, 22, 0.16);
-        color: var(--accent-2);
-      }
-      .actions {
-        margin: 18px 0 10px;
-      }
-      .primary {
+      .btn {
         display: inline-flex;
+        justify-content: center;
         align-items: center;
-        gap: 8px;
+        padding: 14px 18px;
+        border-radius: 12px;
         background: var(--accent);
         color: #fff;
-        padding: 10px 16px;
-        border-radius: 12px;
         text-decoration: none;
         font-weight: 600;
-        box-shadow: 0 12px 24px rgba(15, 118, 110, 0.2);
+        border: 1px solid transparent;
+        transition: transform 0.12s ease, box-shadow 0.12s ease;
+        box-shadow: 0 10px 20px rgba(15, 118, 110, 0.18);
       }
-      .assets {
-        margin-top: 8px;
+      .btn:hover {
+        transform: translateY(-1px);
       }
-      .section-title {
-        font-weight: 600;
-        margin-bottom: 8px;
-      }
-      ul {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-        display: grid;
-        gap: 8px;
-      }
-      li {
-        display: flex;
-        justify-content: space-between;
-        gap: 16px;
-        padding: 8px 12px;
-        background: rgba(15, 23, 42, 0.04);
-        border-radius: 12px;
-        align-items: center;
-        flex-wrap: wrap;
-      }
-      li a {
-        color: var(--ink);
-        text-decoration: none;
-        font-weight: 600;
-      }
-      .notes {
-        margin-top: 12px;
-        color: var(--muted);
-        font-size: 0.95rem;
-        line-height: 1.5;
-      }
-      details summary {
-        cursor: pointer;
-        font-weight: 600;
+      .btn.secondary {
+        background: transparent;
         color: var(--accent);
+        border-color: var(--border);
+        box-shadow: none;
       }
-      .muted {
-        color: var(--muted);
+      .btn.disabled {
+        opacity: 0.5;
+        pointer-events: none;
       }
-      footer {
-        padding: 24px 10vw 48px;
-        color: var(--muted);
-        font-size: 0.9rem;
-      }
-      .empty {
-        padding: 32px;
-        background: var(--card);
-        border-radius: 18px;
-        border: 1px dashed var(--border);
-      }
-      @keyframes rise {
-        from { opacity: 0; transform: translateY(16px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      @media (max-width: 720px) {
-        header, main, footer { padding-left: 6vw; padding-right: 6vw; }
-        li { flex-direction: column; align-items: flex-start; }
-        .card-head { flex-direction: column; }
+      @media (max-width: 640px) {
+        .wrap { padding: 40px 16px 48px; }
       }
     </style>
   </head>
   <body>
-    <header>
-      <h1>GmAccess Релизы</h1>
-      <p>Актуальные сборки, заметки об изменениях и прямые ссылки на загрузку по каждому релизу.</p>
-    </header>
-    <main>
-      <div class="grid">
-        ${cards}
+    <div class="wrap">
+      <h1>GmAccess</h1>
+      <div class="buttons">
+        <a class="btn${links.windows ? '' : ' disabled'}" href="${escapeHtml(links.windows || '#')}" aria-disabled="${links.windows ? 'false' : 'true'}">Скачать для Windows</a>
+        <a class="btn secondary${links.macos ? '' : ' disabled'}" href="${escapeHtml(links.macos || '#')}" aria-disabled="${links.macos ? 'false' : 'true'}">Скачать для macOS</a>
       </div>
-    </main>
-    <footer>
-      Обновлено ${escapeHtml(updated)} · Источник: GitHub Releases
-    </footer>
+    </div>
   </body>
 </html>`;
 }

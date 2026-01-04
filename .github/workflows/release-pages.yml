@@ -26,6 +26,8 @@ jobs:
           node-version: 20
       - name: Configure Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - name: Build release page
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
