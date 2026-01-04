@@ -118,74 +118,94 @@ function buildHtml(releases) {
     <style>
       @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&display=swap');
       :root {
-        --bg: #f6f6f4;
-        --ink: #151615;
-        --muted: #5b615e;
-        --accent: #0f766e;
-        --card: #ffffff;
-        --border: #e5e7eb;
+        --bg: #0f172a;
+        --bg-soft: #0b1224;
+        --ink: #f8fafc;
+        --muted: #94a3b8;
+        --accent: #22c55e;
+        --accent-2: #0ea5e9;
+        --border: rgba(148, 163, 184, 0.28);
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
         font-family: "IBM Plex Sans", "Manrope", "Segoe UI", sans-serif;
         color: var(--ink);
-        background: var(--bg);
+        background: radial-gradient(1200px 600px at 50% -10%, rgba(34, 197, 94, 0.22), transparent 60%),
+                    radial-gradient(900px 500px at 50% 120%, rgba(14, 165, 233, 0.18), transparent 55%),
+                    var(--bg);
         min-height: 100vh;
       }
       .wrap {
-        max-width: 820px;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 20px;
+        text-align: center;
+      }
+      .panel {
+        background: linear-gradient(145deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.92));
+        border: 1px solid var(--border);
+        border-radius: 28px;
+        padding: 40px 32px;
         margin: 0 auto;
-        padding: 56px 16px 64px;
+        max-width: 540px;
+        width: 100%;
+        box-shadow: 0 40px 80px rgba(2, 6, 23, 0.6);
       }
       h1 {
-        margin: 0 0 6px 0;
-        font-size: clamp(2rem, 3vw, 2.8rem);
-        letter-spacing: -0.02em;
+        margin: 0 0 18px 0;
+        font-size: clamp(2.2rem, 3vw, 3rem);
+        letter-spacing: 0.02em;
       }
       .buttons {
-        display: grid;
-        gap: 12px;
-        margin-top: 22px;
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        flex-wrap: wrap;
       }
       .btn {
         display: inline-flex;
         justify-content: center;
         align-items: center;
-        padding: 14px 18px;
-        border-radius: 12px;
-        background: var(--accent);
+        padding: 14px 28px;
+        border-radius: 999px;
+        background: linear-gradient(120deg, var(--accent), var(--accent-2));
         color: #fff;
         text-decoration: none;
         font-weight: 600;
         border: 1px solid transparent;
-        transition: transform 0.12s ease, box-shadow 0.12s ease;
-        box-shadow: 0 10px 20px rgba(15, 118, 110, 0.18);
+        transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+        box-shadow: 0 16px 32px rgba(34, 197, 94, 0.24);
       }
       .btn:hover {
         transform: translateY(-1px);
       }
       .btn.secondary {
         background: transparent;
-        color: var(--accent);
-        border-color: var(--border);
+        color: var(--ink);
+        border-color: rgba(148, 163, 184, 0.4);
         box-shadow: none;
       }
       .btn.disabled {
-        opacity: 0.5;
+        opacity: 0.4;
         pointer-events: none;
       }
       @media (max-width: 640px) {
-        .wrap { padding: 40px 16px 48px; }
+        .panel { padding: 32px 24px; }
+        .buttons { flex-direction: column; }
       }
     </style>
   </head>
   <body>
     <div class="wrap">
-      <h1>GmAccess</h1>
-      <div class="buttons">
-        <a class="btn${links.windows ? '' : ' disabled'}" href="${escapeHtml(links.windows || '#')}" aria-disabled="${links.windows ? 'false' : 'true'}">Скачать для Windows</a>
-        <a class="btn secondary${links.macos ? '' : ' disabled'}" href="${escapeHtml(links.macos || '#')}" aria-disabled="${links.macos ? 'false' : 'true'}">Скачать для macOS</a>
+      <div class="panel">
+        <h1>GmAccess</h1>
+        <div class="buttons">
+          <a class="btn${links.windows ? '' : ' disabled'}" href="${escapeHtml(links.windows || '#')}" aria-disabled="${links.windows ? 'false' : 'true'}">Скачать для Windows</a>
+          <a class="btn secondary${links.macos ? '' : ' disabled'}" href="${escapeHtml(links.macos || '#')}" aria-disabled="${links.macos ? 'false' : 'true'}">Скачать для macOS</a>
+        </div>
       </div>
     </div>
   </body>
