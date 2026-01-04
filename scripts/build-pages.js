@@ -33,7 +33,7 @@ function formatDate(iso) {
   const ms = Date.parse(iso);
   if (!Number.isFinite(ms)) return '';
   const d = new Date(ms);
-  const fmt = new Intl.DateTimeFormat('en-GB', {
+  const fmt = new Intl.DateTimeFormat('ru-RU', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -66,12 +66,12 @@ async function fetchReleases() {
 }
 
 function renderReleaseCard(release, index, isLatest) {
-  const tag = release.tag_name || release.name || 'untagged';
-  const title = release.name || release.tag_name || 'Release';
+  const tag = release.tag_name || release.name || 'без тега';
+  const title = release.name || release.tag_name || 'Релиз';
   const url = release.html_url || '#';
   const published = formatDate(release.published_at || release.created_at);
-  const prerelease = release.prerelease ? '<span class="badge subtle">Pre-release</span>' : '';
-  const latest = isLatest ? '<span class="badge">Latest</span>' : '';
+  const prerelease = release.prerelease ? '<span class="badge subtle">Предрелиз</span>' : '';
+  const latest = isLatest ? '<span class="badge">Последний</span>' : '';
   const assets = Array.isArray(release.assets) ? release.assets : [];
   const assetsHtml = assets.length
     ? assets.map((asset) => {
@@ -79,13 +79,13 @@ function renderReleaseCard(release, index, isLatest) {
       const assetUrl = escapeHtml(asset.browser_download_url || '#');
       const assetSize = formatBytes(asset.size || 0);
       const dlCount = Number.isFinite(asset.download_count) ? asset.download_count : null;
-      const dlLabel = dlCount !== null ? `${dlCount} downloads` : 'downloads';
-      return `<li><a href="${assetUrl}">${assetName}</a><span>${assetSize} - ${dlLabel}</span></li>`;
+      const dlLabel = dlCount !== null ? `${dlCount} скачиваний` : 'скачиваний';
+      return `<li><a href="${assetUrl}">${assetName}</a><span>${assetSize} · ${dlLabel}</span></li>`;
     }).join('')
-    : '<li class="muted">No assets uploaded.</li>';
+    : '<li class="muted">Файлы не добавлены.</li>';
   const notes = escapeHtml(release.body || '').replace(/\n/g, '<br>');
   const notesBlock = notes
-    ? `<details><summary>Release notes</summary><div class="notes">${notes}</div></details>`
+    ? `<details><summary>Описание релиза</summary><div class="notes">${notes}</div></details>`
     : '';
   return `
     <article class="card" style="--i:${index}">
@@ -103,10 +103,10 @@ function renderReleaseCard(release, index, isLatest) {
         </div>
       </div>
       <div class="actions">
-        <a class="primary" href="${escapeHtml(url)}">View release</a>
+        <a class="primary" href="${escapeHtml(url)}">Открыть релиз</a>
       </div>
       <div class="assets">
-        <div class="section-title">Assets</div>
+        <div class="section-title">Файлы</div>
         <ul>${assetsHtml}</ul>
       </div>
       ${notesBlock}
@@ -124,15 +124,15 @@ function buildHtml(releases) {
     });
   const cards = sorted.length
     ? sorted.map((r, i) => renderReleaseCard(r, i, i === 0)).join('')
-    : '<div class="empty">No releases published yet.</div>';
+    : '<div class="empty">Релизов пока нет.</div>';
   const updated = new Date().toISOString().slice(0, 19).replace('T', ' ') + ' UTC';
   return `<!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>GmAccess Releases</title>
-    <meta name="description" content="Download links and release history for GmAccess." />
+    <title>GmAccess Релизы</title>
+    <meta name="description" content="Ссылки на загрузку и история релизов GmAccess." />
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
       :root {
@@ -314,8 +314,8 @@ function buildHtml(releases) {
   </head>
   <body>
     <header>
-      <h1>GmAccess Releases</h1>
-      <p>Latest installers, changelog notes, and direct download links for every published release.</p>
+      <h1>GmAccess Релизы</h1>
+      <p>Актуальные сборки, заметки об изменениях и прямые ссылки на загрузку по каждому релизу.</p>
     </header>
     <main>
       <div class="grid">
@@ -323,7 +323,7 @@ function buildHtml(releases) {
       </div>
     </main>
     <footer>
-      Updated ${escapeHtml(updated)} - Source: GitHub Releases
+      Обновлено ${escapeHtml(updated)} · Источник: GitHub Releases
     </footer>
   </body>
 </html>`;
